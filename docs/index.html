@@ -325,7 +325,7 @@ body {
 <!-- 主内容 -->
 <div class="container">
   <div class="action-section">
-    <p class="action-desc">点击下方按钮，AI将自动搜索最近3天的热门美妆个护产品，并为你推荐3个最佳选品</p>
+    <p class="action-desc">点击下方按钮，联网搜索实时热门美妆个护数据 + AI智能分析，为你推荐3个最佳选品</p>
     <button class="btn-search" id="btn-search" onclick="startSearch()">
       <span class="icon">🔍</span>
       <span class="text">开始选品</span>
@@ -377,14 +377,14 @@ body {
         <div class="hint">默认使用 deepseek-v4-flash，如需更换可在此填写。</div>
       </div>
       <div style="border-top:1px solid var(--border);margin:20px 0;padding-top:20px;">
-        <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:4px;">🔍 联网搜索（博查 API）</div>
-        <div class="hint" style="margin-bottom:16px;">配置后选品会先联网搜索实时热门数据，推荐更准确。不填则使用 AI 模型知识推荐。</div>
+        <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:4px;">🔍 联网搜索（博查 API）<span style="font-size:0.72rem;color:var(--success);font-weight:600;margin-left:6px;">● 已内置</span></div>
+        <div class="hint" style="margin-bottom:16px;">选品时会先联网搜索实时热门数据，推荐更准确。已内置默认 Key，可直接使用。</div>
       </div>
       <div class="settings-form-group">
-        <label>博查 API Key（可选）</label>
+        <label>博查 API Key</label>
         <input type="password" id="input-bocha-key" placeholder="sk-xxxxxxxx" autocomplete="off">
         <div class="hint">
-          在 <a href="https://open.bochaai.com" target="_blank" rel="noopener">博查AI开放平台</a> 创建 API Key。用于联网搜索实时热门美妆数据，提升推荐准确度。
+          已内置默认 Key，可直接使用。如需使用自己的 Key，可在 <a href="https://open.bochaai.com" target="_blank" rel="noopener">博查AI开放平台</a> 创建后替换。
         </div>
       </div>
 
@@ -435,6 +435,7 @@ let isSearching = false;
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const BOCHA_API_URL = 'https://api.bochaai.com/v1/web-search';
 const DEFAULT_MODEL = 'deepseek-v4-flash';
+const DEFAULT_BOCHA_KEY = 'sk-e8882f739d4a48cab22116b9db7dfabc';
 const STORAGE_KEY_PRODUCTS = 'xhs_selected_products';
 const STORAGE_KEY_API = 'deepseek_api_key';
 const STORAGE_KEY_MODEL = 'deepseek_model';
@@ -450,16 +451,20 @@ let lastGeneratedContent = null;
 // ═══ API Key 管理（localStorage） ═══
 function getApiKey() { return localStorage.getItem(STORAGE_KEY_API) || ''; }
 function getModel() { return localStorage.getItem(STORAGE_KEY_MODEL) || ''; }
-function getBochaKey() { return localStorage.getItem(STORAGE_KEY_BOCHA) || ''; }
+function getBochaKey() { return localStorage.getItem(STORAGE_KEY_BOCHA) || DEFAULT_BOCHA_KEY; }
 function isApiConfigured() { return getApiKey().length > 0; }
 function hasBochaKey() { return getBochaKey().length > 0; }
 
 function updateApiStatusBar() {
   const bar = document.getElementById('api-status-bar');
   if (!bar) return;
-  bar.innerHTML = isApiConfigured()
-    ? '<div class="api-status configured">✓ API Key 已配置</div>'
-    : '<div class="api-status not-configured">⚠ 尚未配置 API Key，请先填写</div>';
+  const apiStatus = isApiConfigured()
+    ? '<div class="api-status configured">✓ DeepSeek API Key 已配置</div>'
+    : '<div class="api-status not-configured">⚠ 尚未配置 DeepSeek API Key，请先填写</div>';
+  const bochaStatus = hasBochaKey()
+    ? '<div class="api-status configured">✓ 博查联网搜索已启用</div>'
+    : '<div class="api-status not-configured">⚠ 博查联网搜索未启用</div>';
+  bar.innerHTML = apiStatus + bochaStatus;
 }
 
 function openSettings() {
