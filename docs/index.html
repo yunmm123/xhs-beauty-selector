@@ -376,6 +376,18 @@ body {
         <input type="text" id="input-model" placeholder="deepseek-v4-flash" autocomplete="off">
         <div class="hint">默认使用 deepseek-v4-flash，如需更换可在此填写。</div>
       </div>
+      <div style="border-top:1px solid var(--border);margin:20px 0;padding-top:20px;">
+        <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:4px;">🔍 联网搜索（博查 API）</div>
+        <div class="hint" style="margin-bottom:16px;">配置后选品会先联网搜索实时热门数据，推荐更准确。不填则使用 AI 模型知识推荐。</div>
+      </div>
+      <div class="settings-form-group">
+        <label>博查 API Key（可选）</label>
+        <input type="password" id="input-bocha-key" placeholder="sk-xxxxxxxx" autocomplete="off">
+        <div class="hint">
+          在 <a href="https://open.bochaai.com" target="_blank" rel="noopener">博查AI开放平台</a> 创建 API Key。用于联网搜索实时热门美妆数据，提升推荐准确度。
+        </div>
+      </div>
+
       <div class="modal-footer">
         <button class="btn-modal-close" onclick="closeSettings()">取消</button>
         <button class="btn-modal-select" onclick="saveSettings()">保存设置</button>
@@ -421,10 +433,12 @@ let currentProducts = [];
 let isSearching = false;
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+const BOCHA_API_URL = 'https://api.bochaai.com/v1/web-search';
 const DEFAULT_MODEL = 'deepseek-v4-flash';
 const STORAGE_KEY_PRODUCTS = 'xhs_selected_products';
 const STORAGE_KEY_API = 'deepseek_api_key';
 const STORAGE_KEY_MODEL = 'deepseek_model';
+const STORAGE_KEY_BOCHA = 'bocha_api_key';
 const STORAGE_KEY_CONTENT = 'xhs_material_content';
 
 // ═══ 发布材料功能状态 ═══
@@ -436,7 +450,9 @@ let lastGeneratedContent = null;
 // ═══ API Key 管理（localStorage） ═══
 function getApiKey() { return localStorage.getItem(STORAGE_KEY_API) || ''; }
 function getModel() { return localStorage.getItem(STORAGE_KEY_MODEL) || ''; }
+function getBochaKey() { return localStorage.getItem(STORAGE_KEY_BOCHA) || ''; }
 function isApiConfigured() { return getApiKey().length > 0; }
+function hasBochaKey() { return getBochaKey().length > 0; }
 
 function updateApiStatusBar() {
   const bar = document.getElementById('api-status-bar');
@@ -449,6 +465,7 @@ function updateApiStatusBar() {
 function openSettings() {
   document.getElementById('input-api-key').value = getApiKey();
   document.getElementById('input-model').value = getModel();
+  document.getElementById('input-bocha-key').value = getBochaKey();
   updateApiStatusBar();
   document.getElementById('settings-overlay').classList.add('active');
 }
@@ -461,12 +478,15 @@ function closeSettings(event) {
 function saveSettings() {
   const apiKey = document.getElementById('input-api-key').value.trim();
   const model = document.getElementById('input-model').value.trim();
-  if (!apiKey) { showToast('请填写 API Key', 'warning'); return; }
+  const bochaKey = document.getElementById('input-bocha-key').value.trim();
+  if (!apiKey) { showToast('请填写 DeepSeek API Key', 'warning'); return; }
   localStorage.setItem(STORAGE_KEY_API, apiKey);
   if (model) { localStorage.setItem(STORAGE_KEY_MODEL, model); }
   else { localStorage.removeItem(STORAGE_KEY_MODEL); }
+  if (bochaKey) { localStorage.setItem(STORAGE_KEY_BOCHA, bochaKey); }
+  else { localStorage.removeItem(STORAGE_KEY_BOCHA); }
   closeSettings();
-  showToast('API 设置已保存', 'success');
+  showToast('设置已保存', 'success');
 }
 
 // ═══ 选品历史管理（localStorage） ═══
@@ -512,7 +532,7 @@ function getSeason() {
   return '冬季（深层滋润、抗冻疮、唇部护理需求旺盛）';
 }
 
-function buildPrompt(selectedNames) {
+function buildPrompt(selectedNames, searchContext) {
   const today = new Date().toLocaleDateString('zh-CN');
   const season = getSeason();
   const excludeText = selectedNames.length > 0
@@ -521,9 +541,14 @@ function buildPrompt(selectedNames) {
 
   const systemPrompt = '你是一位资深的小红书美妆个护选品顾问，拥有10年+电商选品经验，精通小红书种草逻辑、用户画像分析和美妆市场趋势。你熟悉各品牌产品线、成分功效、价格定位和用户口碑。';
 
+  let searchSection = '';
+  if (searchContext) {
+    searchSection = `\n\n以下是刚刚通过搜索引擎获取的实时热门数据，请优先参考这些信息进行推荐：\n${searchContext}\n`;
+  }
+
   const userPrompt = `今天是${today}，当前季节：${season}。
 
-任务：请根据最近3天的小红书美妆个护市场热度趋势，搜索并推荐3个最适合在小红书平台带货的美妆个护产品。
+任务：请根据最近3天的小红书美妆个护市场热度趋势，搜索并推荐3个最适合在小红书平台带货的美妆个护产品。${searchSection}
 
 选品标准（按重要性排序）：
 1. 退货率低（预估 < 20%），优先选择标品或功效明确的产品
@@ -596,6 +621,39 @@ function extractProducts(data) {
   throw new Error('JSON数据中未找到产品列表');
 }
 
+// ═══ 博查联网搜索 ═══
+
+async function searchViaBocha(query, count = 10) {
+  const resp = await fetch(BOCHA_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${getBochaKey()}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      query: query,
+      summary: true,
+      count: count,
+      freshness: 'oneWeek'
+    })
+  });
+  if (!resp.ok) throw new Error(`搜索API错误（HTTP ${resp.status}）`);
+  const data = await resp.json();
+  const webPages = (data.data && data.data.webPages && data.data.webPages.value) || [];
+  return webPages.map(p => ({
+    title: p.name || '',
+    snippet: p.summary || p.snippet || '',
+    url: p.url || ''
+  }));
+}
+
+function formatSearchResults(results) {
+  if (!results || results.length === 0) return '';
+  return results.map((r, i) =>
+    `【${i+1}】${r.title}\n${r.snippet}`
+  ).join('\n\n');
+}
+
 // ═══ 核心选品逻辑 ═══
 async function startSearch() {
   if (isSearching) return;
@@ -614,19 +672,27 @@ async function startSearch() {
   btn.querySelector('.icon').textContent = '⏳';
   btn.querySelector('.text').textContent = '正在搜索...';
 
-  const messages = [
-    '正在搜索最近3天的热门美妆个护产品...',
-    'AI正在分析退货率和复购率数据...',
-    '正在筛选最适合小红书带货的产品...',
-    '正在过滤已选产品，确保不重复...'
-  ];
+  const useBocha = hasBochaKey();
+  const messages = useBocha
+    ? [
+        '正在联网搜索小红书美妆个护热门数据...',
+        '已获取实时搜索结果，AI正在分析...',
+        '正在筛选最适合小红书带货的产品...',
+        '正在过滤已选产品，确保不重复...'
+      ]
+    : [
+        '正在搜索最近3天的热门美妆个护产品...',
+        'AI正在分析退货率和复购率数据...',
+        '正在筛选最适合小红书带货的产品...',
+        '正在过滤已选产品，确保不重复...'
+      ];
   let msgIdx = 0;
 
   area.innerHTML = `
     <div class="loading-section">
       <div class="spinner"></div>
       <div class="loading-text" id="loading-msg">${messages[0]}</div>
-      <div class="loading-subtext">通常需要10-30秒，请耐心等待</div>
+      <div class="loading-subtext">${useBocha ? '联网搜索+AI分析，通常需要15-40秒' : '通常需要10-30秒，请耐心等待'}</div>
     </div>`;
 
   const msgInterval = setInterval(() => {
@@ -638,7 +704,20 @@ async function startSearch() {
   try {
     const selected = loadSelectedProducts();
     const selectedNames = selected.map(p => p.name || '');
-    const { systemPrompt, userPrompt } = buildPrompt(selectedNames);
+
+    // 步骤1：如果配置了博查Key，先联网搜索
+    let searchContext = '';
+    if (useBocha) {
+      try {
+        const searchResults = await searchViaBocha('小红书 美妆个护 热门 带货 近期', 10);
+        searchContext = formatSearchResults(searchResults);
+      } catch (err) {
+        console.warn('博查搜索失败，回退到纯AI模式:', err);
+      }
+    }
+
+    // 步骤2：调用 DeepSeek 分析推荐
+    const { systemPrompt, userPrompt } = buildPrompt(selectedNames, searchContext || null);
     const useModel = getModel() || DEFAULT_MODEL;
 
     const resp = await fetch(DEEPSEEK_API_URL, {
