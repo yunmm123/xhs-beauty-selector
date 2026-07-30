@@ -406,15 +406,25 @@ body {
       <div class="modal-name" id="material-product-name"></div>
       <div class="modal-brand" id="material-product-meta"></div>
 
-      <div class="upload-section">
-        <label class="upload-label">📷 上传素材图片（可选）</label>
-        <div class="image-preview-grid" id="material-images"></div>
-        <div class="hint" style="font-size:0.76rem;color:var(--text-muted);margin-top:8px;">上传你在小红书搜索到的产品截图、笔记素材等，AI会参考生成更贴合的文案</div>
+      <div style="background:var(--info-bg);border-radius:var(--radius-xs);padding:10px 14px;margin-bottom:18px;font-size:0.8rem;color:var(--info);line-height:1.6;">
+        💡 下方上传的素材为<strong>主要依据</strong>，AI会从素材中识别实际品牌和产品信息来生成文案。选品信息仅作参考。
       </div>
 
       <div class="upload-section">
-        <label class="upload-label">📝 补充说明（可选）</label>
-        <textarea class="material-textarea" id="material-notes" placeholder="补充你在小红书找到的信息，如：用户评价、热门笔记角度、产品亮点等..."></textarea>
+        <label class="upload-label">📷 上传素材图片 <span style="color:var(--xhs-red);font-size:0.76rem;">（主要依据）</span></label>
+        <div class="image-preview-grid" id="material-images"></div>
+        <div class="hint" style="font-size:0.76rem;color:var(--text-muted);margin-top:8px;">上传你在小红书搜索到的产品截图、商品详情页、笔记素材等，AI会从图片中识别实际品牌、产品名、卖点等信息</div>
+      </div>
+
+      <div class="upload-section">
+        <label class="upload-label">📝 品牌与产品信息 <span style="color:var(--xhs-red);font-size:0.76rem;">（主要依据）</span></label>
+        <textarea class="material-textarea" id="material-notes" placeholder="填写你实际找到的品牌和产品信息，例如：&#10;品牌：花西子&#10;产品：玉养蜜粉饼&#10;我在小红书看到的热门笔记角度：通勤持妆、油皮亲妈...&#10;用户评价：粉质细腻、不卡粉..."></textarea>
+        <div class="hint" style="font-size:0.76rem;color:var(--text-muted);margin-top:6px;">这里填写的信息优先级高于选品推荐，AI以此为准生成文案</div>
+      </div>
+
+      <div style="background:var(--border-light);border-radius:var(--radius-xs);padding:10px 14px;margin-bottom:16px;">
+        <div style="font-size:0.76rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">📋 选品参考（仅辅助）</div>
+        <div id="material-ref-info" style="font-size:0.8rem;color:var(--text-secondary);line-height:1.6;"></div>
       </div>
 
       <button class="btn-generate" id="btn-generate" onclick="generateContent()">生成发布材料</button>
@@ -968,6 +978,11 @@ function openMaterialModal(encodedName) {
   document.getElementById('material-product-meta').textContent =
     `${materialProduct.category || ''} · ${materialProduct.price_range || ''} · ${materialProduct.brand || ''}`;
 
+  // 填充选品参考信息
+  const refInfo = document.getElementById('material-ref-info');
+  const sellingPoints = (materialProduct.selling_points || []).join('、');
+  refInfo.innerHTML = `选品推荐品牌：${materialProduct.brand || '未知'} | 品类：${materialProduct.category || ''}<br>核心卖点：${sellingPoints || '暂无'} | 种草方向：${materialProduct.xhs_angle || ''}`;
+
   renderMaterialImages();
 
   const contents = loadGeneratedContents();
@@ -1034,23 +1049,56 @@ function removeMaterialImage(index) {
   renderMaterialImages();
 }
 
-function buildMaterialPrompt(product, notes) {
+function buildMaterialPrompt(product, notes, hasImages) {
   const sellingPoints = (product.selling_points || []).join('、');
   const systemPrompt = '你是一位有5年经验的小红书种草博主，擅长用真实自然的口吻写种草笔记，文风像普通用户随手分享好物，绝不像AI生成的文案。';
-  let userPrompt = `请根据以下产品信息${notes ? '和用户补充说明' : ''}，生成一篇小红书种草笔记的发布材料。
 
-产品信息：
-- 名称：${product.name || ''}
-- 品牌：${product.brand || ''}
-- 品类：${product.category || ''}
-- 核心卖点：${sellingPoints || '暂无'}
-- 目标人群：${product.target_audience || ''}
-- 种草方向：${product.xhs_angle || ''}
-- 推荐理由：${product.reason || ''}`;
+  // 构建选品参考信息（仅辅助）
+  const refInfo = `【选品参考（仅辅助，可能与实际品牌不同）】
+- 选品推荐品牌：${product.brand || '未知'}
+- 选品品类：${product.category || ''}
+- 推荐核心卖点：${sellingPoints || '暂无'}
+- 种草方向：${product.xhs_angle || ''}`;
 
-  if (notes) userPrompt += `\n\n用户补充说明（用户在小红书搜集的素材）：\n${notes}`;
+  let userPrompt;
 
-  userPrompt += `\n\n请生成以下内容：
+  if (hasImages) {
+    // 有图片：以图片识别为主，文字补充为辅
+    userPrompt = `请根据我上传的素材图片${notes ? '和下方填写的品牌产品信息' : ''}，生成一篇小红书种草笔记的发布材料。
+
+⚠️ 重要：请优先从上传的图片中识别实际的品牌名称、产品名称、产品卖点等信息。图片中识别到的信息是主要依据，下方选品参考信息仅为辅助（实际品牌可能与选品推荐不同）。
+
+${notes ? `【用户填写的品牌与产品信息（主要依据）】\n${notes}\n\n` : ''}${refInfo}
+
+请严格按照以下顺序工作：
+1. 先分析上传的图片，识别出实际的品牌、产品名称、关键卖点
+2. 结合用户填写的品牌信息（如有）
+3. 选品参考仅作为种草方向和品类的辅助
+4. 基于以上信息生成自然的种草笔记`;
+  } else if (notes) {
+    // 无图片但有文字：以文字为主
+    userPrompt = `请根据我填写的品牌与产品信息，生成一篇小红书种草笔记的发布材料。
+
+⚠️ 重要：下方用户填写的品牌产品信息是主要依据，选品参考仅为辅助（实际品牌可能与选品推荐不同，请以用户填写的信息为准）。
+
+【用户填写的品牌与产品信息（主要依据）】
+${notes}
+
+${refInfo}
+
+请严格按照以下顺序工作：
+1. 以用户填写的品牌和产品信息为准
+2. 选品参考仅作为种草方向和品类的辅助
+3. 基于以上信息生成自然的种草笔记`;
+  } else {
+    // 无图片无文字：提示需要素材
+    userPrompt = null;
+  }
+
+  if (userPrompt) {
+    userPrompt += `
+
+请生成以下内容：
 1. 标题：20字以内，口语化，像真人随手写的标题
 2. 作品描述：300字以内，第一人称口吻，像跟朋友安利好物一样自然
 3. 话题：10个以内，与产品相关且有热度
@@ -1066,6 +1114,7 @@ function buildMaterialPrompt(product, notes) {
 
 请严格按以下JSON格式返回（只返回JSON，不要其他文字）：
 {"title":"","description":"","tags":["",""]}`;
+  }
 
   return { systemPrompt, userPrompt };
 }
@@ -1075,6 +1124,15 @@ async function generateContent() {
   if (!isApiConfigured()) { showToast('请先配置 API Key', 'warning'); openSettings(); return; }
   if (!materialProduct) { showToast('产品信息缺失', 'error'); return; }
 
+  const notes = document.getElementById('material-notes').value.trim();
+  const hasImgs = materialImages.length > 0;
+
+  // 必须至少上传图片或填写品牌信息
+  if (!hasImgs && !notes) {
+    showToast('请上传素材图片或填写品牌产品信息后再生成', 'warning');
+    return;
+  }
+
   isGenerating = true;
   const btn = document.getElementById('btn-generate');
   const resultsSection = document.getElementById('material-results');
@@ -1082,11 +1140,10 @@ async function generateContent() {
   btn.disabled = true;
   btn.textContent = '正在生成...';
   resultsSection.classList.add('show');
-  resultsSection.innerHTML = '<div style="text-align:center;padding:30px 20px;"><div class="gen-spinner"></div><p style="font-size:0.85rem;color:var(--text-secondary);">AI正在根据素材生成发布材料...</p></div>';
+  resultsSection.innerHTML = '<div style="text-align:center;padding:30px 20px;"><div class="gen-spinner"></div><p style="font-size:0.85rem;color:var(--text-secondary);">AI正在分析素材并生成发布材料...</p></div>';
 
   try {
-    const notes = document.getElementById('material-notes').value.trim();
-    const { systemPrompt, userPrompt } = buildMaterialPrompt(materialProduct, notes);
+    const { systemPrompt, userPrompt } = buildMaterialPrompt(materialProduct, notes, hasImgs);
     const useModel = getModel() || DEFAULT_MODEL;
 
     // 构建消息内容（支持图片）
@@ -1097,7 +1154,7 @@ async function generateContent() {
       model: useModel,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: materialImages.length > 0 ? messageContent : userPrompt }
+        { role: 'user', content: hasImgs ? messageContent : userPrompt }
       ],
       temperature: 0.9,
       max_tokens: 2000
@@ -1110,7 +1167,7 @@ async function generateContent() {
     });
 
     // 如果带图片请求失败，自动重试纯文本
-    if (!resp.ok && materialImages.length > 0) {
+    if (!resp.ok && hasImgs) {
       requestBody.messages[1].content = userPrompt;
       resp = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
