@@ -1303,27 +1303,68 @@ function copyGenerated(field, btn) {
   document.body.removeChild(textarea);
 }
 
-// ═══ 种草视频生成（TRAE 视频生成工具对接） ═══
+// ═══ 种草视频生成（15秒多镜头脚本 + 字幕 + 旁白） ═══
 
 let isPreparingVideo = false;
 
-// 用DeepSeek生成视频提示词
-async function generateVideoPrompt(notes) {
-  const systemPrompt = '你是一位专业的小红书短视频编导，擅长用简洁的提示词描述美妆产品的展示画面。';
-  const context = notes || (materialProduct ? `选品参考：${materialProduct.category || ''}，${materialProduct.brand || ''}` : '美妆个护产品');
+// 用DeepSeek生成完整的15秒视频脚本
+async function generateVideoScript(notes) {
+  const systemPrompt = `你是一位专业的电商短视频编导，擅长为小红书种草视频编写分镜脚本。
+你需要输出严格的JSON格式，包含15秒视频的3个分镜，每个分镜包含：画面描述（英文，用于AI视频生成）、中文字幕、中文旁白文案。
+关键要求：用户会上传产品参考图片，视频中的产品必须与参考图片中的产品完全一致。每个分镜的prompt中必须包含对 <image 1> 的引用，确保AI视频生成时使用参考图片中的产品。`;
 
-  const userPrompt = `请根据以下信息，生成一段5秒短视频的画面描述提示词（用于AI视频生成）。
+  const hasImgs = materialImages.length > 0;
+  const productInfo = materialProduct
+    ? `品类=${materialProduct.category || ''}，品牌=${materialProduct.brand || ''}，卖点=${(materialProduct.selling_points || []).join('、')}，种草方向=${materialProduct.xhs_angle || ''}`
+    : '美妆个护产品';
 
-产品信息：${context}
+  const context = notes
+    ? `${productInfo}\n用户补充说明：${notes}`
+    : productInfo;
+
+  const imageInstruction = hasImgs
+    ? `\n\n【重要】用户已上传 ${materialImages.length} 张产品参考图片。在AI视频生成时，第一张图片（<image 1>）将作为产品参考图传入。每个分镜的prompt中必须明确引用 <image 1> 来描述产品外观，例如："Close-up of the product from <image 1> on a marble surface" 或 "The lipstick from <image 1> being applied to lips"。这样AI才能生成与参考图片一致的产品。`
+    : '';
+
+  const userPrompt = `请根据以下产品信息，生成一段15秒小红书种草短视频的完整分镜脚本。
+
+产品信息：${context}${imageInstruction}
 
 要求：
-1. 提示词描述画面的视觉内容，包括产品展示、使用场景、光线氛围
-2. 适合小红书种草风格，自然、清新、有质感
-3. 只返回提示词本身，不要任何解释或额外文字
-4. 提示词长度控制在100字以内
-5. 用中文描述
+1. 视频总时长15秒，分为3个分镜（每个约5秒）
+2. 每个分镜的prompt用英文描述画面内容，包括产品展示、场景、光线、镜头运动
+3. 【关键】${hasImgs ? '每个分镜的prompt中必须包含 <image 1> 引用，确保视频中的产品与用户上传的参考图片完全一致。例如："The [产品类型] from <image 1> placed on..." ' : '如果用户后续上传产品图片，prompt中应引用 <image 1>。'}确保产品外观、颜色、包装等细节与参考图一致
+4. subtitle是该分镜的中文字幕（10字以内，简洁有力）
+5. voiceover是该分镜的中文旁白文案（20字以内，口语化，像真人在说话）
+6. 画面要适合小红书种草风格，自然、清新、有质感
+7. 第一个分镜展示产品外观（${hasImgs ? '必须引用 <image 1>' : '突出包装和质感'}），第二个分镜展示使用过程，第三个分镜展示使用效果
 
-示例：一支口红在柔和的自然光下，放置在白色大理石台面上，镜头缓慢推进展示膏体质感，背景是模糊的化妆台`;
+请严格按以下JSON格式返回（只返回JSON，不要其他文字）：
+{
+  "shots": [
+    {
+      "index": 1,
+      "duration": 5,
+      "prompt": "English visual description, must reference <image 1> for product",
+      "subtitle": "中文字幕",
+      "voiceover": "中文旁白文案"
+    },
+    {
+      "index": 2,
+      "duration": 5,
+      "prompt": "English visual description, must reference <image 1> for product",
+      "subtitle": "中文字幕",
+      "voiceover": "中文旁白文案"
+    },
+    {
+      "index": 3,
+      "duration": 5,
+      "prompt": "English visual description, must reference <image 1> for product",
+      "subtitle": "中文字幕",
+      "voiceover": "中文旁白文案"
+    }
+  ]
+}`;
 
   const useModel = getModel() || DEFAULT_MODEL;
   const resp = await fetch(DEEPSEEK_API_URL, {
@@ -1335,16 +1376,29 @@ async function generateVideoPrompt(notes) {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.8,
-      max_tokens: 300
+      temperature: 0.85,
+      max_tokens: 1000
     })
   });
-  if (!resp.ok) throw new Error(`生成提示词失败（HTTP ${resp.status}）`);
+  if (!resp.ok) throw new Error(`生成脚本失败（HTTP ${resp.status}）`);
   const data = await resp.json();
-  return data.choices[0].message.content.trim();
+  const content = data.choices[0].message.content.trim();
+
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (m) parsed = JSON.parse(m[0]);
+    else throw new Error('无法解析脚本JSON');
+  }
+
+  if (!parsed.shots || !Array.isArray(parsed.shots) || parsed.shots.length === 0) {
+    throw new Error('脚本格式错误：缺少shots数组');
+  }
+  return parsed;
 }
 
-// 准备视频生成：生成提示词 + 下载素材图片
+// 准备视频生成：生成完整脚本 + 素材下载
 async function prepareVideoGeneration() {
   if (isPreparingVideo) return;
   if (!isApiConfigured()) { showToast('请先配置 DeepSeek API Key', 'warning'); openSettings(); return; }
@@ -1359,74 +1413,147 @@ async function prepareVideoGeneration() {
   const results = document.getElementById('video-results');
 
   btn.disabled = true;
-  btn.textContent = '正在准备...';
+  btn.textContent = '正在生成脚本...';
   results.innerHTML = `
     <div class="video-progress">
       <div class="gen-spinner"></div>
-      <div class="progress-text" id="video-progress-text">正在生成视频提示词...</div>
-      <div class="progress-sub">AI正在根据素材编写视频画面描述</div>
+      <div class="progress-text">正在编写15秒视频分镜脚本...</div>
+      <div class="progress-sub">AI正在根据素材编写画面描述、字幕和旁白</div>
     </div>`;
 
   try {
-    // 步骤1：生成视频提示词
-    const videoPrompt = await generateVideoPrompt(notes);
+    // 生成15秒视频脚本
+    const script = await generateVideoScript(notes);
+    const shots = script.shots;
 
-    // 步骤2：准备素材图片下载链接
+    // 构建完整提示词（用于发送给TRAE）
+    const fullPrompt = shots.map(s =>
+      `Shot ${s.index}: ${s.prompt}`
+    ).join('\n\n');
+
+    // 构建字幕文本
+    const subtitles = shots.map(s => s.subtitle).join(' | ');
+
+    // 构建旁白文本
+    const voiceover = shots.map(s => s.voiceover).join(' ');
+
+    // 构建素材图片下载区
     let imageLinksHtml = '';
     if (hasImgs) {
       imageLinksHtml = `
-        <div style="margin-top:16px;">
-          <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">📷 素材图片（右键保存或点击下载）</div>
+        <div style="margin-top:16px;padding:12px;background:#fff;border-radius:8px;border:1px dashed var(--info);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);">📷 产品参考图（${materialImages.length}张，视频生成必需）</div>
+            <button class="copy-btn" style="padding:4px 10px;font-size:0.72rem;" onclick="downloadAllMaterials()">⬇ 全部下载</button>
+          </div>
           <div style="display:flex;flex-wrap:wrap;gap:10px;">
             ${materialImages.map((src, i) => `
-              <a href="${src}" download="material_${i+1}.jpg" style="display:block;width:80px;height:80px;border-radius:6px;overflow:hidden;border:2px solid var(--border);">
+              <a href="${src}" download="product_ref_${i+1}.jpg" style="display:block;width:80px;height:80px;border-radius:6px;overflow:hidden;border:2px solid ${i===0?'#6C5CE7':'var(--border)'};position:relative;">
                 <img src="${src}" style="width:100%;height:100%;object-fit:cover;">
+                ${i===0?'<div style="position:absolute;bottom:0;left:0;right:0;background:#6C5CE7;color:#fff;font-size:0.6rem;text-align:center;padding:1px;">主参考图</div>':''}
               </a>`).join('')}
           </div>
+          <div style="margin-top:8px;font-size:0.72rem;color:var(--info);">第一张为主参考图（<image 1>），GenerateVideo将基于此图生成一致的产品画面</div>
         </div>`;
     }
 
-    // 步骤3：展示提示词和使用说明
+    // 构建TRAE请求文本
+    const imageCount = materialImages.length;
+    const traeRequest = `请用视频生成工具（GenerateVideo）生成一段15秒的小红书种草短视频。
+
+【重要 - 产品参考图】
+${imageCount > 0 ? `我已上传 ${imageCount} 张产品参考图片，请将第一张图片作为 GenerateVideo 的 image_paths 参数传入，确保视频中的产品与参考图片完全一致。
+每个分镜的prompt中已包含对 <image 1> 的引用，AI会根据参考图生成一致的产品画面。` : '请在生成前向我索要产品参考图片，将其作为 image_paths 参数传入 GenerateVideo。'}
+
+视频生成参数：
+- 工具：GenerateVideo
+- 时长：15秒
+- 分辨率：720p
+- 比例：9:16（竖屏）
+- image_paths：${imageCount > 0 ? `["产品参考图路径.jpg"]` : '["产品图片路径"]'}
+
+视频提示词（每个Shot的prompt已引用 <image 1> 确保产品一致）：
+${fullPrompt}
+
+字幕（生成视频后用ffmpeg添加）：
+${shots.map((s, i) => `分镜${i+1}（${s.duration}秒）：${s.subtitle}`).join('\n')}
+
+旁白文案（生成视频后用ffmpeg添加语音）：
+${shots.map((s, i) => `分镜${i+1}：${s.voiceover}`).join('\n')}
+
+执行步骤：
+1. 将我上传的产品图片保存到工作目录（如 /workspace/product_ref.jpg）
+2. 调用 GenerateVideo，传入 image_paths=["/workspace/product_ref.jpg"]，prompt为上述完整提示词，duration=15, resolution="720p", ratio="9:16"
+3. 视频生成后，用ffmpeg添加中文字幕（SRT格式）
+4. 如需语音旁白，用TTS生成音频后用ffmpeg合成
+5. 最终视频保存到 /workspace/ 目录`;
+
+    // 展示完整脚本
     results.innerHTML = `
       <div style="margin-top:16px;background:var(--border-light);border-radius:var(--radius-sm);padding:16px;">
-        <div style="font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:10px;">🎬 视频生成准备完成</div>
-
-        <div style="margin-bottom:14px;">
-          <div style="font-size:0.76rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">视频提示词：</div>
-          <div style="background:#fff;border-radius:6px;padding:10px 12px;font-size:0.82rem;color:var(--text);line-height:1.6;border:1px solid var(--border);">
-            ${escapeHtml(videoPrompt)}
-          </div>
-          <button class="copy-btn" style="margin-top:6px;" onclick="copyVideoPrompt(this)" data-prompt="${escapeHtml(videoPrompt)}">复制提示词</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-size:0.82rem;font-weight:700;color:var(--text);">🎬 15秒视频脚本已生成</div>
+          ${hasImgs ? '<div style="font-size:0.72rem;color:#6C5CE7;font-weight:600;">✓ 产品参考图已绑定</div>' : '<div style="font-size:0.72rem;color:var(--warning);">⚠ 未上传产品参考图</div>'}
         </div>
+
+        ${hasImgs ? '' : `<div style="margin-bottom:12px;padding:10px;background:#FFF3CD;border-radius:6px;font-size:0.76rem;color:#856404;line-height:1.5;">
+          <strong>⚠ 重要提醒：</strong>未上传产品参考图，生成的视频可能无法匹配实际产品。请先上传产品素材图片，再重新生成脚本。
+        </div>`}
+
+        ${shots.map((s, i) => `
+          <div style="background:#fff;border-radius:8px;padding:12px;margin-bottom:10px;border-left:3px solid #6C5CE7;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div style="font-size:0.78rem;font-weight:700;color:#6C5CE7;">分镜 ${s.index}（${s.duration}秒）</div>
+              ${s.prompt.includes('<image 1>') ? '<div style="font-size:0.68rem;color:#27AE60;background:#E8F8F0;padding:2px 6px;border-radius:4px;">✓ 引用参考图</div>' : '<div style="font-size:0.68rem;color:#E74C3C;background:#FDEDEC;padding:2px 6px;border-radius:4px;">✗ 未引用参考图</div>'}
+            </div>
+            <div style="font-size:0.76rem;color:var(--text-muted);margin-bottom:4px;">画面描述（英文prompt）：</div>
+            <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.5;margin-bottom:8px;">${escapeHtml(s.prompt)}</div>
+            <div style="display:flex;gap:12px;">
+              <div style="flex:1;">
+                <div style="font-size:0.72rem;color:var(--text-muted);">字幕</div>
+                <div style="font-size:0.82rem;font-weight:600;color:var(--xhs-red);">${escapeHtml(s.subtitle)}</div>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:0.72rem;color:var(--text-muted);">旁白</div>
+                <div style="font-size:0.82rem;color:var(--text);">${escapeHtml(s.voiceover)}</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
 
         ${imageLinksHtml}
 
-        <div style="margin-top:16px;padding:12px;background:var(--info-bg);border-radius:6px;font-size:0.76rem;color:var(--info);line-height:1.6;">
-          <strong>使用方法：</strong><br>
-          1. 复制上方提示词<br>
-          2. 下载素材图片到本地<br>
-          3. 在 TRAE 对话中发送："<strong>用视频生成工具，根据这个提示词生成视频：[粘贴提示词]</strong>"<br>
-          4. 如有素材图片，一并发送给 AI 助手<br>
-          5. 视频生成完成后会保存到工作目录
+        <div style="margin-top:14px;">
+          <button class="copy-btn" style="width:100%;padding:10px;font-size:0.85rem;" onclick="copyTraeRequest(this)" data-request="${escapeHtml(traeRequest)}">📋 复制完整视频生成请求（发送给TRAE）</button>
+        </div>
+
+        <div style="margin-top:14px;padding:12px;background:var(--info-bg);border-radius:6px;font-size:0.76rem;color:var(--info);line-height:1.6;">
+          <strong>📋 生成视频步骤（确保产品一致）：</strong><br>
+          1. 点击"全部下载"或逐张下载产品参考图到本地<br>
+          2. 点击"复制完整视频生成请求"按钮<br>
+          3. 在TRAE对话中粘贴请求，<strong style="color:#6C5CE7;">并附上下载的产品参考图</strong><br>
+          4. TRAE会调用 GenerateVideo，将产品图作为 image_paths 传入，生成15秒竖屏视频<br>
+          5. 视频中的产品将与参考图完全一致<br>
+          6. 生成后自动添加中文字幕和语音旁白
         </div>
       </div>`;
 
-    btn.textContent = '重新准备';
-    showToast('视频提示词已生成', 'success');
+    btn.textContent = '重新生成脚本';
+    showToast('15秒视频脚本已生成', 'success');
 
   } catch (err) {
-    results.innerHTML = `<div class="video-error">${escapeHtml(err.message || '准备失败')}</div>`;
-    showToast('准备失败', 'error');
+    results.innerHTML = `<div class="video-error">${escapeHtml(err.message || '生成失败')}</div>`;
+    showToast('生成失败', 'error');
   } finally {
     isPreparingVideo = false;
     btn.disabled = false;
   }
 }
 
-function copyVideoPrompt(btn) {
-  const prompt = btn.getAttribute('data-prompt');
+function copyTraeRequest(btn) {
+  const request = btn.getAttribute('data-request');
   const textarea = document.createElement('textarea');
-  textarea.value = prompt;
+  textarea.value = request;
   textarea.style.position = 'fixed';
   textarea.style.opacity = '0';
   document.body.appendChild(textarea);
@@ -1434,10 +1561,24 @@ function copyVideoPrompt(btn) {
   try {
     document.execCommand('copy');
     btn.classList.add('copied');
-    btn.textContent = '已复制';
-    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '复制提示词'; }, 2000);
+    btn.textContent = '✓ 已复制，去TRAE粘贴';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '📋 复制完整视频生成请求（发送给TRAE）'; }, 3000);
   } catch { showToast('复制失败', 'error'); }
   document.body.removeChild(textarea);
+}
+
+// 一键下载全部素材图片
+function downloadAllMaterials() {
+  if (materialImages.length === 0) { showToast('暂无素材图片', 'warning'); return; }
+  materialImages.forEach((src, i) => {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = `product_ref_${i+1}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+  showToast(`已下载 ${materialImages.length} 张产品参考图`, 'success');
 }
 
 // ═══ 初始化 ═══
