@@ -343,8 +343,8 @@ body {
       </div>
       <div class="settings-form-group">
         <label>模型名称（可选）</label>
-        <input type="text" id="input-model" placeholder="deepseek-chat" autocomplete="off">
-        <div class="hint">默认使用 deepseek-chat，如需更换可在此填写。</div>
+        <input type="text" id="input-model" placeholder="deepseek-v4-flash" autocomplete="off">
+        <div class="hint">默认使用 deepseek-v4-flash，如需更换可在此填写。</div>
       </div>
       <div class="modal-footer">
         <button class="btn-modal-close" onclick="closeSettings()">取消</button>
@@ -363,7 +363,7 @@ let currentProducts = [];
 let isSearching = false;
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
-const DEFAULT_MODEL = 'deepseek-chat';
+const DEFAULT_MODEL = 'deepseek-v4-flash';
 const STORAGE_KEY_PRODUCTS = 'xhs_selected_products';
 const STORAGE_KEY_API = 'deepseek_api_key';
 const STORAGE_KEY_MODEL = 'deepseek_model';
