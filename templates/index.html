@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小红书美妆个护选品库</title>
+<style>
+/* ─── 全局变量 ─── */
+:root {
+  --xhs-red: #FF2442;
+  --xhs-red-light: #FF6B81;
+  --xhs-red-dark: #E01E3C;
+  --xhs-pink-bg: #FFF0F3;
+  --xhs-pink-light: #FFE4E8;
+  --bg: #F5F5F7;
+  --card-bg: #FFFFFF;
+  --text: #1A1A1A;
+  --text-secondary: #555555;
+  --text-muted: #999999;
+  --border: #EEEEEE;
+  --border-light: #F5F5F5;
+  --success: #07C160;
+  --success-bg: #E8F8EE;
+  --warning: #FA9D3B;
+  --warning-bg: #FFF4E6;
+  --danger: #EE0A24;
+  --danger-bg: #FFEEF0;
+  --info: #3B82F6;
+  --info-bg: #EBF5FF;
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+  --shadow-xl: 0 16px 50px rgba(0,0,0,0.18);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Reset ─── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: -apple-system, 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* ─── 头部 ─── */
+.header {
+  background: linear-gradient(135deg, var(--xhs-red) 0%, var(--xhs-red-light) 100%);
+  padding: 28px 24px 24px;
+  text-align: center;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 50%;
+}
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -5%;
+  width: 200px;
+  height: 200px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 50%;
+}
+.header .logo {
+  font-size: 2rem;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.02em;
+}
+.header .subtitle {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+.header .stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 16px;
+  position: relative;
+  z-index: 1;
+}
+.header .stat-item {
+  text-align: center;
+}
+.header .stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.header .stat-label {
+  font-size: 0.72rem;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+/* ─── 容器 ─── */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+/* ─── 选品操作区 ─── */
+.action-section {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.action-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.btn-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, var(--xhs-red) 0%, var(--xhs-red-light) 100%);
+  color: #fff;
+  border: none;
+  padding: 14px 40px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 4px 16px rgba(255, 36, 66, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+.btn-search:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 36, 66, 0.4);
+}
+.btn-search:active:not(:disabled) {
+  transform: translateY(0);
+}
+.btn-search:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.btn-search .icon {
+  font-size: 1.2rem;
+  display: inline-block;
+}
+.btn-search.loading .icon {
+  animation: spin 0.8s linear infinite;
+}
+.btn-search:not(.loading) .icon {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* ─── 加载状态 ─── */
+.loading-section {
+  text-align: center;
+  padding: 60px 20px;
+}
+.loading-section .spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--xhs-pink-light);
+  border-top-color: var(--xhs-red);
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  animation: spin 0.8s linear infinite;
+}
+.loading-section .loading-text {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.loading-section .loading-subtext {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* ─── 空状态 ─── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-state .emoji {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+.empty-state p {
+  font-size: 0.9rem;
+}
+
+/* ─── 产品卡片网格 ─── */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+@media (max-width: 768px) {
+  .products-grid { grid-template-columns: 1fr; }
+}
+
+.product-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  animation: cardIn 0.4s ease forwards;
+  opacity: 0;
+}
+.product-card:nth-child(1) { animation-delay: 0.1s; }
+.product-card:nth-child(2) { animation-delay: 0.2s; }
+.product-card:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.product-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+}
+.product-card.selected {
+  border: 2px solid var(--success);
+  box-shadow: 0 0 0 3px var(--success-bg);
+}
+
+/* 卡片头部色条 */
+.card-top-bar {
+  height: 4px;
+  background: linear-gradient(90deg, var(--xhs-red), var(--xhs-red-light));
+}
+
+.card-body {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-category {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--xhs-red);
+  background: var(--xhs-pink-bg);
+  padding: 3px 10px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 10px;
+  align-self: flex-start;
+}
+
+.card-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+.card-brand {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.badge-return { background: var(--success-bg); color: var(--success); }
+.badge-repurchase { background: var(--info-bg); color: var(--info); }
+.badge-price { background: var(--border-light); color: var(--text-secondary); }
+
+.card-points {
+  flex: 1;
+  margin-bottom: 16px;
+}
+.card-points-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.card-points ul {
+  list-style: none;
+  padding: 0;
+}
+.card-points li {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  padding: 3px 0;
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.5;
+}
+.card-points li::before {
+  content: '✦';
+  position: absolute;
+  left: 0;
+  color: var(--xhs-red-light);
+  font-size: 0.75rem;
+}
+
+.card-audience {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  background: var(--border-light);
+  border-radius: var(--radius-xs);
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-detail, .btn-select {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-detail {
+  background: var(--border-light);
+  color: var(--text-secondary);
+}
+.btn-detail:hover {
+  background: var(--border);
+}
+.btn-select {
+  background: var(--xhs-red);
+  color: #fff;
+}
+.btn-select:hover {
+  background: var(--xhs-red-dark);
+  transform: scale(1.02);
+}
+.btn-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── 历史记录区 ─── */
+.history-section {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.history-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.history-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: var(--border-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+}
+.btn-clear {
+  font-size: 0.78rem;
+  color: var(--danger);
+  background: none;
+  border: 1px solid var(--danger);
+  padding: 4px 12px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-clear:hover {
+  background: var(--danger-bg);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--border-light);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+.history-item:hover {
+  background: var(--xhs-pink-bg);
+}
+.history-item .date-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--xhs-red);
+  background: #fff;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: center;
+}
+.history-item .item-info {
+  flex: 1;
+}
+.history-item .item-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.history-item .item-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.history-item .item-status {
+  font-size: 0.72rem;
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* ─── 模态框 ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.active {
+  display: flex;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal {
+  background: #fff;
+  border-radius: var(--radius);
+  max-width: 520px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  animation: modalIn 0.3s ease;
+}
+@keyframes modalIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.modal-top-bar {
+  height: 5px;
+  background: linear-gradient(90deg, var(--xhs-red), var(--xhs-red-light));
+}
+.modal-body {
+  padding: 28px;
+}
+.modal-close {
+  float: right;
+  font-size: 1.4rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  transition: var(--transition);
+}
+.modal-close:hover { color: var(--text); }
+.modal-category {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--xhs-red);
+  background: var(--xhs-pink-bg);
+  padding: 4px 12px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 12px;
+}
+.modal-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.modal-brand {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+.modal-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.modal-section {
+  margin-bottom: 18px;
+}
+.modal-section-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.modal-section-title::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  background: var(--xhs-red);
+  border-radius: 2px;
+}
+.modal-section-content {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.modal-section-content ul {
+  list-style: none;
+  padding: 0;
+}
+.modal-section-content li {
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+.modal-section-content li::before {
+  content: '✦';
+  position: absolute;
+  left: 0;
+  color: var(--xhs-red-light);
+}
+.modal-footer {
+  margin-top: 24px;
+  display: flex;
+  gap: 10px;
+}
+.modal-footer button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-modal-close {
+  background: var(--border-light);
+  color: var(--text-secondary);
+}
+.btn-modal-close:hover { background: var(--border); }
+.btn-modal-select {
+  background: var(--xhs-red);
+  color: #fff;
+}
+.btn-modal-select:hover { background: var(--xhs-red-dark); }
+
+/* ─── Toast ─── */
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: var(--text);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 500;
+  z-index: 2000;
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 90%;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.warning { background: var(--warning); }
+
+/* ─── 设置按钮 ─── */
+.btn-settings {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  z-index: 2;
+}
+.btn-settings:hover {
+  background: rgba(255,255,255,0.35);
+  transform: rotate(60deg);
+}
+
+/* ─── 设置模态框 ─── */
+.settings-form-group {
+  margin-bottom: 20px;
+}
+.settings-form-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.settings-form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  color: var(--text);
+  transition: var(--transition);
+  outline: none;
+}
+.settings-form-group input:focus {
+  border-color: var(--xhs-red);
+  box-shadow: 0 0 0 3px rgba(255,36,66,0.1);
+}
+.settings-form-group .hint {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.settings-form-group .hint a {
+  color: var(--xhs-red);
+  text-decoration: none;
+}
+.settings-form-group .hint a:hover { text-decoration: underline; }
+
+.api-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 16px;
+}
+.api-status.configured {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.api-status.not-configured {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+/* ─── 响应式 ─── */
+@media (max-width: 600px) {
+  .header h1 { font-size: 1.2rem; }
+  .header .stats-bar { gap: 20px; }
+  .container { padding: 16px 12px 40px; }
+  .btn-search { padding: 12px 28px; font-size: 0.95rem; }
+  .modal-body { padding: 20px; }
+  .btn-settings { top: 14px; right: 14px; width: 34px; height: 34px; font-size: 1rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- 头部 -->
+<div class="header">
+  <button class="btn-settings" onclick="openSettings()" title="API设置">⚙️</button>
+  <div class="logo">💄</div>
+  <h1>小红书美妆个护选品库</h1>
+  <p class="subtitle">AI智能选品 · 自动去重 · 避免重复带货</p>
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-value" id="stat-total">0</div>
+      <div class="stat-label">累计选品</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="stat-today">0</div>
+      <div class="stat-label">今日选品</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">3</div>
+      <div class="stat-label">每次推荐</div>
+    </div>
+  </div>
+</div>
+
+<!-- 主内容 -->
+<div class="container">
+
+  <!-- 选品操作区 -->
+  <div class="action-section">
+    <p class="action-desc">点击下方按钮，AI将自动搜索最近3天的热门美妆个护产品，并为你推荐3个最佳选品</p>
+    <button class="btn-search" id="btn-search" onclick="startSearch()">
+      <span class="icon">🔍</span>
+      <span class="text">开始选品</span>
+    </button>
+  </div>
+
+  <!-- 产品展示区 -->
+  <div id="products-area"></div>
+
+  <!-- 历史记录 -->
+  <div class="history-section">
+    <div class="history-header">
+      <h2>📋 已选产品历史 <span class="history-count" id="history-count">0</span></h2>
+      <button class="btn-clear" onclick="clearHistory()" id="btn-clear" style="display:none;">清空历史</button>
+    </div>
+    <div id="history-list">
+      <div class="empty-state" id="history-empty">
+        <div class="emoji">📝</div>
+        <p>暂无选品记录，开始你的第一次选品吧</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 产品详情模态框 -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-top-bar"></div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- 设置模态框 -->
+<div class="modal-overlay" id="settings-overlay" onclick="closeSettings(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-top-bar"></div>
+    <div class="modal-body">
+      <span class="modal-close" onclick="closeSettings()">✕</span>
+      <span class="modal-category">⚙️ API 设置</span>
+      <div class="modal-name">DeepSeek API 配置</div>
+      <div class="modal-brand">在下方填写你的 API Key 以启用 AI 选品功能</div>
+
+      <div id="api-status-bar"></div>
+
+      <div class="settings-form-group">
+        <label>API Key</label>
+        <input type="password" id="input-api-key" placeholder="sk-xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+        <div class="hint">
+          在 <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">DeepSeek 开放平台</a> 创建 API Key，粘贴到此处。Key 仅保存在你的浏览器本地，不会上传到服务器。
+        </div>
+      </div>
+
+      <div class="settings-form-group">
+        <label>模型名称（可选）</label>
+        <input type="text" id="input-model" placeholder="deepseek-v4-flash" autocomplete="off">
+        <div class="hint">默认使用 deepseek-v4-flash，如需更换可在此填写。</div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-modal-close" onclick="closeSettings()">取消</button>
+        <button class="btn-modal-select" onclick="saveSettings()">保存设置</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── 全局状态 ───
+let currentProducts = [];
+let isSearching = false;
+
+// ─── API Key 管理（存储在浏览器 localStorage） ───
+
+function getApiKey() {
+  return localStorage.getItem('deepseek_api_key') || '';
+}
+function getModel() {
+  return localStorage.getItem('deepseek_model') || '';
+}
+function isApiConfigured() {
+  return getApiKey().length > 0;
+}
+
+function updateApiStatusBar() {
+  const bar = document.getElementById('api-status-bar');
+  if (!bar) return;
+  if (isApiConfigured()) {
+    bar.innerHTML = '<div class="api-status configured">✓ API Key 已配置</div>';
+  } else {
+    bar.innerHTML = '<div class="api-status not-configured">⚠ 尚未配置 API Key，请先填写</div>';
+  }
+}
+
+function openSettings() {
+  document.getElementById('input-api-key').value = getApiKey();
+  document.getElementById('input-model').value = getModel();
+  updateApiStatusBar();
+  document.getElementById('settings-overlay').classList.add('active');
+}
+
+function closeSettings(event) {
+  if (event && event.target !== document.getElementById('settings-overlay')) return;
+  document.getElementById('settings-overlay').classList.remove('active');
+}
+
+function saveSettings() {
+  const apiKey = document.getElementById('input-api-key').value.trim();
+  const model = document.getElementById('input-model').value.trim();
+
+  if (!apiKey) {
+    showToast('请填写 API Key', 'warning');
+    return;
+  }
+
+  localStorage.setItem('deepseek_api_key', apiKey);
+  if (model) {
+    localStorage.setItem('deepseek_model', model);
+  } else {
+    localStorage.removeItem('deepseek_model');
+  }
+
+  closeSettings();
+  showToast('API 设置已保存', 'success');
+}
+
+// ─── 工具函数 ───
+
+function showToast(message, type = '') {
+  const toast = document.getElementById('toast');
+  toast.className = 'toast ' + type;
+  const icons = { success: '✓', error: '✕', warning: '⚠', '': '' };
+  toast.innerHTML = (icons[type] ? '<span>' + icons[type] + '</span>' : '') + message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ─── 选品搜索 ───
+
+async function startSearch() {
+  if (isSearching) return;
+
+  // 检查是否已配置 API Key
+  if (!isApiConfigured()) {
+    showToast('请先点击右上角设置按钮配置 API Key', 'warning');
+    openSettings();
+    return;
+  }
+
+  isSearching = true;
+
+  const btn = document.getElementById('btn-search');
+  const area = document.getElementById('products-area');
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+  btn.querySelector('.icon').textContent = '⏳';
+  btn.querySelector('.text').textContent = '正在搜索...';
+
+  const messages = [
+    '正在搜索最近3天的热门美妆个护产品...',
+    'AI正在分析退货率和复购率数据...',
+    '正在筛选最适合小红书带货的产品...',
+    '正在过滤已选产品，确保不重复...'
+  ];
+  let msgIdx = 0;
+
+  area.innerHTML = `
+    <div class="loading-section">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-msg">${messages[0]}</div>
+      <div class="loading-subtext">通常需要10-30秒，请耐心等待</div>
+    </div>
+  `;
+
+  const msgInterval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % messages.length;
+    const el = document.getElementById('loading-msg');
+    if (el) el.textContent = messages[msgIdx];
+  }, 3500);
+
+  try {
+    const headers = { 'X-API-Key': getApiKey() };
+    const model = getModel();
+    if (model) headers['X-Model'] = model;
+
+    const resp = await fetch('/api/search', {
+      method: 'POST',
+      headers: headers
+    });
+    const data = await resp.json();
+    clearInterval(msgInterval);
+
+    if (data.success && data.products && data.products.length > 0) {
+      currentProducts = data.products;
+      renderProducts(data.products);
+    } else {
+      area.innerHTML = `
+        <div class="empty-state">
+          <div class="emoji">😕</div>
+          <p>${escapeHtml(data.error || '未找到合适的产品，请稍后重试')}</p>
+        </div>
+      `;
+    }
+  } catch (err) {
+    clearInterval(msgInterval);
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">⚠️</div>
+        <p>网络错误，请检查服务是否正常运行</p>
+      </div>
+    `;
+    showToast('搜索失败，请重试', 'error');
+  } finally {
+    isSearching = false;
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    btn.querySelector('.icon').textContent = '🔍';
+    btn.querySelector('.text').textContent = '再次选品';
+  }
+}
+
+// ─── 渲染产品卡片 ───
+
+function renderProducts(products) {
+  const area = document.getElementById('products-area');
+
+  let html = '<div class="products-grid">';
+
+  products.forEach((p, i) => {
+    const points = (p.selling_points || []).slice(0, 3).map(pt =>
+      `<li>${escapeHtml(pt)}</li>`
+    ).join('');
+
+    html += `
+      <div class="product-card" id="card-${i}">
+        <div class="card-top-bar"></div>
+        <div class="card-body">
+          <span class="card-category">${escapeHtml(p.category || '美妆个护')}</span>
+          <div class="card-name">${escapeHtml(p.name || '未命名产品')}</div>
+          <div class="card-brand">${escapeHtml(p.brand || '')}</div>
+          <div class="card-badges">
+            <span class="badge badge-return">📉退货 ${escapeHtml(p.return_rate || 'N/A')}</span>
+            <span class="badge badge-repurchase">🔁复购 ${escapeHtml(p.repurchase_rate || 'N/A')}</span>
+            <span class="badge badge-price">💰${escapeHtml(p.price_range || 'N/A')}</span>
+          </div>
+          <div class="card-points">
+            <div class="card-points-label">核心卖点</div>
+            <ul>${points || '<li>暂无</li>'}</ul>
+          </div>
+          <div class="card-audience">🎯 ${escapeHtml(p.target_audience || '所有人群')}</div>
+          <div class="card-actions">
+            <button class="btn-detail" onclick="showDetail(${i})">查看详情</button>
+            <button class="btn-select" onclick="confirmSelect(${i})">选定此产品</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  area.innerHTML = html;
+}
+
+// ─── 产品详情模态框 ───
+
+function showDetail(idx) {
+  const p = currentProducts[idx];
+  if (!p) return;
+
+  const points = (p.selling_points || []).map(pt =>
+    `<li>${escapeHtml(pt)}</li>`
+  ).join('');
+
+  document.getElementById('modal-body').innerHTML = `
+    <span class="modal-close" onclick="closeModal()">✕</span>
+    <span class="modal-category">${escapeHtml(p.category || '美妆个护')}</span>
+    <div class="modal-name">${escapeHtml(p.name || '未命名产品')}</div>
+    <div class="modal-brand">${escapeHtml(p.brand || '')}</div>
+    <div class="modal-badges">
+      <span class="badge badge-return">📉退货率 ${escapeHtml(p.return_rate || 'N/A')}</span>
+      <span class="badge badge-repurchase">🔁复购率 ${escapeHtml(p.repurchase_rate || 'N/A')}</span>
+      <span class="badge badge-price">💰${escapeHtml(p.price_range || 'N/A')}</span>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">核心卖点</div>
+      <div class="modal-section-content"><ul>${points || '<li>暂无</li>'}</ul></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">目标人群</div>
+      <div class="modal-section-content">${escapeHtml(p.target_audience || '所有人群')}</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">小红书种草方向</div>
+      <div class="modal-section-content">${escapeHtml(p.xhs_angle || '暂无建议')}</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">近期热度原因</div>
+      <div class="modal-section-content">${escapeHtml(p.trend_reason || '暂无')}</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">综合推荐理由</div>
+      <div class="modal-section-content">${escapeHtml(p.reason || '暂无')}</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-close" onclick="closeModal()">关闭</button>
+      <button class="btn-modal-select" onclick="confirmSelect(${idx})">选定此产品</button>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+
+function closeModal(event) {
+  if (event && event.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+
+// ─── 确认选品 ───
+
+async function confirmSelect(idx) {
+  const p = currentProducts[idx];
+  if (!p) return;
+
+  try {
+    const resp = await fetch('/api/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p)
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      // 标记选中的卡片
+      document.querySelectorAll('.product-card').forEach(c => c.classList.remove('selected'));
+      const card = document.getElementById('card-' + idx);
+      if (card) card.classList.add('selected');
+
+      showToast(`已选定：${p.name}`, 'success');
+      closeModal();
+
+      // 刷新历史和统计
+      loadHistory();
+
+      // 2秒后清除产品展示区
+      setTimeout(() => {
+        document.getElementById('products-area').innerHTML = `
+          <div class="empty-state">
+            <div class="emoji">✅</div>
+            <p>选品成功！可点击"再次选品"获取新的推荐</p>
+          </div>
+        `;
+      }, 2000);
+    } else {
+      showToast(data.error || '选品失败', 'error');
+    }
+  } catch (err) {
+    showToast('网络错误，选品失败', 'error');
+  }
+}
+
+// ─── 历史记录 ───
+
+async function loadHistory() {
+  try {
+    const resp = await fetch('/api/history');
+    const data = await resp.json();
+
+    if (data.success) {
+      renderHistory(data.products);
+      updateStats(data.products);
+    }
+  } catch (err) {
+    console.error('加载历史失败:', err);
+  }
+}
+
+function renderHistory(products) {
+  const list = document.getElementById('history-list');
+  const countEl = document.getElementById('history-count');
+  const clearBtn = document.getElementById('btn-clear');
+
+  countEl.textContent = products.length;
+  clearBtn.style.display = products.length > 0 ? '' : 'none';
+
+  if (products.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state" id="history-empty">
+        <div class="emoji">📝</div>
+        <p>暂无选品记录，开始你的第一次选品吧</p>
+      </div>
+    `;
+    return;
+  }
+
+  // 按时间倒序
+  const sorted = [...products].reverse();
+
+  let html = '<div class="history-list">';
+  sorted.forEach(p => {
+    const date = p.confirmed_at ? p.confirmed_at.split(' ')[0] : '未知';
+    const time = p.confirmed_at ? p.confirmed_at.split(' ')[1] : '';
+    html += `
+      <div class="history-item">
+        <div class="date-badge">${date}</div>
+        <div class="item-info">
+          <div class="item-name">${escapeHtml(p.name || '未命名')}</div>
+          <div class="item-meta">${escapeHtml(p.category || '')} · ${escapeHtml(p.price_range || '')} · ${escapeHtml(p.brand || '')}</div>
+        </div>
+        <div class="item-status">已选定</div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  list.innerHTML = html;
+}
+
+function updateStats(products) {
+  const today = new Date().toISOString().split('T')[0];
+  const todayCount = products.filter(p =>
+    p.confirmed_at && p.confirmed_at.startsWith(today)
+  ).length;
+
+  document.getElementById('stat-total').textContent = products.length;
+  document.getElementById('stat-today').textContent = todayCount;
+}
+
+// ─── 清空历史 ───
+
+async function clearHistory() {
+  if (!confirm('确定要清空所有选品历史吗？此操作不可撤销。')) return;
+
+  try {
+    const resp = await fetch('/api/clear', { method: 'POST' });
+    const data = await resp.json();
+    if (data.success) {
+      loadHistory();
+      showToast('历史记录已清空', 'success');
+    } else {
+      showToast('清空失败', 'error');
+    }
+  } catch (err) {
+    showToast('网络错误', 'error');
+  }
+}
+
+// ─── 初始化 ───
+loadHistory();
+</script>
+
+</body>
+</html>
