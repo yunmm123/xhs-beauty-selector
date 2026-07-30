@@ -257,6 +257,36 @@ body {
 .api-status.configured { background: var(--success-bg); color: var(--success); }
 .api-status.not-configured { background: var(--warning-bg); color: var(--warning); }
 
+/* ─── 发布材料 ─── */
+.btn-material { font-size: 0.72rem; font-weight: 600; color: var(--xhs-red); background: var(--xhs-pink-bg); border: 1px solid var(--xhs-pink-light); padding: 5px 10px; border-radius: var(--radius-xs); cursor: pointer; transition: var(--transition); white-space: nowrap; }
+.btn-material:hover { background: var(--xhs-pink-light); }
+.upload-section { margin-bottom: 18px; }
+.upload-label { font-size: 0.85rem; font-weight: 600; color: var(--text); margin-bottom: 8px; display: block; }
+.image-preview-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.image-preview-item { position: relative; width: 76px; height: 76px; border-radius: var(--radius-xs); overflow: hidden; border: 2px solid var(--border); }
+.image-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+.image-preview-item .remove-img { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: none; font-size: 0.65rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.upload-btn { width: 76px; height: 76px; border: 2px dashed var(--border); border-radius: var(--radius-xs); background: var(--border-light); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--text-muted); transition: var(--transition); }
+.upload-btn:hover { border-color: var(--xhs-red); color: var(--xhs-red); background: var(--xhs-pink-bg); }
+.material-textarea { width: 100%; min-height: 80px; padding: 12px 14px; border: 2px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; font-family: inherit; resize: vertical; outline: none; transition: var(--transition); line-height: 1.6; }
+.material-textarea:focus { border-color: var(--xhs-red); box-shadow: 0 0 0 3px rgba(255,36,66,0.1); }
+.btn-generate { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--xhs-red), var(--xhs-red-light)); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: var(--transition); margin-top: 6px; }
+.btn-generate:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,36,66,0.3); }
+.btn-generate:disabled { opacity: 0.6; cursor: not-allowed; }
+.generated-section { margin-top: 24px; display: none; }
+.generated-section.show { display: block; }
+.generated-section h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 14px; color: var(--text); }
+.content-block { margin-bottom: 16px; }
+.content-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.content-block-label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+.copy-btn { font-size: 0.72rem; color: var(--xhs-red); background: var(--xhs-pink-bg); border: none; padding: 3px 10px; border-radius: var(--radius-xs); cursor: pointer; transition: var(--transition); }
+.copy-btn:hover { background: var(--xhs-pink-light); }
+.copy-btn.copied { background: var(--success-bg); color: var(--success); }
+.content-box { background: var(--border-light); border-radius: var(--radius-xs); padding: 12px 14px; font-size: 0.88rem; line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-chip { font-size: 0.78rem; color: var(--xhs-red); background: var(--xhs-pink-bg); padding: 4px 10px; border-radius: 20px; }
+.gen-spinner { width: 36px; height: 36px; border: 3px solid var(--xhs-pink-light); border-top-color: var(--xhs-red); border-radius: 50%; margin: 0 auto 12px; animation: spin 0.8s linear infinite; }
+
 /* ─── 响应式 ─── */
 @media (max-width: 600px) {
   .header h1 { font-size: 1.2rem; }
@@ -354,6 +384,34 @@ body {
   </div>
 </div>
 
+<!-- 发布材料模态框 -->
+<div class="modal-overlay" id="material-overlay" onclick="closeMaterialModal(event)">
+  <div class="modal" style="max-width:600px;" onclick="event.stopPropagation()">
+    <div class="modal-top-bar"></div>
+    <div class="modal-body">
+      <span class="modal-close" onclick="closeMaterialModal()">✕</span>
+      <span class="modal-category">📝 发布材料准备</span>
+      <div class="modal-name" id="material-product-name"></div>
+      <div class="modal-brand" id="material-product-meta"></div>
+
+      <div class="upload-section">
+        <label class="upload-label">📷 上传素材图片（可选）</label>
+        <div class="image-preview-grid" id="material-images"></div>
+        <div class="hint" style="font-size:0.76rem;color:var(--text-muted);margin-top:8px;">上传你在小红书搜索到的产品截图、笔记素材等，AI会参考生成更贴合的文案</div>
+      </div>
+
+      <div class="upload-section">
+        <label class="upload-label">📝 补充说明（可选）</label>
+        <textarea class="material-textarea" id="material-notes" placeholder="补充你在小红书找到的信息，如：用户评价、热门笔记角度、产品亮点等..."></textarea>
+      </div>
+
+      <button class="btn-generate" id="btn-generate" onclick="generateContent()">生成发布材料</button>
+
+      <div class="generated-section" id="material-results"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -367,6 +425,13 @@ const DEFAULT_MODEL = 'deepseek-v4-flash';
 const STORAGE_KEY_PRODUCTS = 'xhs_selected_products';
 const STORAGE_KEY_API = 'deepseek_api_key';
 const STORAGE_KEY_MODEL = 'deepseek_model';
+const STORAGE_KEY_CONTENT = 'xhs_material_content';
+
+// ═══ 发布材料功能状态 ═══
+let materialProduct = null;
+let materialImages = [];
+let isGenerating = false;
+let lastGeneratedContent = null;
 
 // ═══ API Key 管理（localStorage） ═══
 function getApiKey() { return localStorage.getItem(STORAGE_KEY_API) || ''; }
@@ -771,7 +836,7 @@ function renderHistory(products) {
           <div class="item-name">${escapeHtml(p.name || '未命名')}</div>
           <div class="item-meta">${escapeHtml(p.category || '')} · ${escapeHtml(p.price_range || '')} · ${escapeHtml(p.brand || '')}</div>
         </div>
-        <div class="item-status">已选定</div>
+        <button class="btn-material" onclick="openMaterialModal('${encodeURIComponent(p.name || '')}')">📝发布材料</button>
       </div>`;
   });
   html += '</div>';
@@ -789,8 +854,281 @@ function updateStats(products) {
 function clearHistory() {
   if (!confirm('确定要清空所有选品历史吗？此操作不可撤销。')) return;
   clearSelectedProducts();
+  localStorage.removeItem(STORAGE_KEY_CONTENT);
   loadHistory();
   showToast('历史记录已清空', 'success');
+}
+
+// ═══ 发布材料功能 ═══
+
+function loadGeneratedContents() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY_CONTENT) || '{}'); }
+  catch { return {}; }
+}
+
+function saveGeneratedContent(productName, content) {
+  const all = loadGeneratedContents();
+  all[productName] = content;
+  localStorage.setItem(STORAGE_KEY_CONTENT, JSON.stringify(all));
+}
+
+function openMaterialModal(encodedName) {
+  const name = decodeURIComponent(encodedName);
+  const products = loadSelectedProducts();
+  materialProduct = products.find(p => p.name === name);
+  if (!materialProduct) { showToast('未找到产品信息', 'error'); return; }
+
+  materialImages = [];
+  document.getElementById('material-notes').value = '';
+  document.getElementById('material-product-name').textContent = materialProduct.name || '';
+  document.getElementById('material-product-meta').textContent =
+    `${materialProduct.category || ''} · ${materialProduct.price_range || ''} · ${materialProduct.brand || ''}`;
+
+  renderMaterialImages();
+
+  const contents = loadGeneratedContents();
+  const resultsSection = document.getElementById('material-results');
+  if (contents[name]) {
+    displayGeneratedContent(contents[name]);
+  } else {
+    resultsSection.classList.remove('show');
+    resultsSection.innerHTML = '';
+  }
+
+  document.getElementById('material-overlay').classList.add('active');
+}
+
+function closeMaterialModal(event) {
+  if (event && event.target !== document.getElementById('material-overlay')) return;
+  document.getElementById('material-overlay').classList.remove('active');
+}
+
+function compressImage(file, maxSize = 1024, quality = 0.8) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) {
+          const r = Math.min(maxSize / w, maxSize / h);
+          w = Math.round(w * r); h = Math.round(h * r);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleMaterialImages(event) {
+  const files = Array.from(event.target.files);
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue;
+    materialImages.push(await compressImage(file));
+  }
+  event.target.value = '';
+  renderMaterialImages();
+}
+
+function renderMaterialImages() {
+  const container = document.getElementById('material-images');
+  let html = '';
+  materialImages.forEach((src, i) => {
+    html += `<div class="image-preview-item"><img src="${src}" alt="素材${i+1}"><button class="remove-img" onclick="removeMaterialImage(${i})">✕</button></div>`;
+  });
+  html += `<label class="upload-btn" title="添加图片">+<input type="file" accept="image/*" multiple style="display:none" onchange="handleMaterialImages(event)"></label>`;
+  container.innerHTML = html;
+}
+
+function removeMaterialImage(index) {
+  materialImages.splice(index, 1);
+  renderMaterialImages();
+}
+
+function buildMaterialPrompt(product, notes) {
+  const sellingPoints = (product.selling_points || []).join('、');
+  const systemPrompt = '你是一位有5年经验的小红书种草博主，擅长用真实自然的口吻写种草笔记，文风像普通用户随手分享好物，绝不像AI生成的文案。';
+  let userPrompt = `请根据以下产品信息${notes ? '和用户补充说明' : ''}，生成一篇小红书种草笔记的发布材料。
+
+产品信息：
+- 名称：${product.name || ''}
+- 品牌：${product.brand || ''}
+- 品类：${product.category || ''}
+- 核心卖点：${sellingPoints || '暂无'}
+- 目标人群：${product.target_audience || ''}
+- 种草方向：${product.xhs_angle || ''}
+- 推荐理由：${product.reason || ''}`;
+
+  if (notes) userPrompt += `\n\n用户补充说明（用户在小红书搜集的素材）：\n${notes}`;
+
+  userPrompt += `\n\n请生成以下内容：
+1. 标题：20字以内，口语化，像真人随手写的标题
+2. 作品描述：300字以内，第一人称口吻，像跟朋友安利好物一样自然
+3. 话题：10个以内，与产品相关且有热度
+
+绝对禁止（这些会让内容有AI味）：
+- 用"首先、其次、最后、总之"等过渡词
+- 用"这款产品""该产品"等书面表达
+- 连续使用多个感叹号
+- 堆砌emoji（最多2-3个）
+- 用"姐妹们""不得不说""真的是"等套路句式
+- 用绝对化用语（最好、第一、唯一等）
+- 夸大或虚假宣传功效
+
+请严格按以下JSON格式返回（只返回JSON，不要其他文字）：
+{"title":"","description":"","tags":["",""]}`;
+
+  return { systemPrompt, userPrompt };
+}
+
+async function generateContent() {
+  if (isGenerating) return;
+  if (!isApiConfigured()) { showToast('请先配置 API Key', 'warning'); openSettings(); return; }
+  if (!materialProduct) { showToast('产品信息缺失', 'error'); return; }
+
+  isGenerating = true;
+  const btn = document.getElementById('btn-generate');
+  const resultsSection = document.getElementById('material-results');
+
+  btn.disabled = true;
+  btn.textContent = '正在生成...';
+  resultsSection.classList.add('show');
+  resultsSection.innerHTML = '<div style="text-align:center;padding:30px 20px;"><div class="gen-spinner"></div><p style="font-size:0.85rem;color:var(--text-secondary);">AI正在根据素材生成发布材料...</p></div>';
+
+  try {
+    const notes = document.getElementById('material-notes').value.trim();
+    const { systemPrompt, userPrompt } = buildMaterialPrompt(materialProduct, notes);
+    const useModel = getModel() || DEFAULT_MODEL;
+
+    // 构建消息内容（支持图片）
+    const messageContent = [{ type: 'text', text: userPrompt }];
+    materialImages.forEach(src => messageContent.push({ type: 'image_url', image_url: { url: src } }));
+
+    const requestBody = {
+      model: useModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: materialImages.length > 0 ? messageContent : userPrompt }
+      ],
+      temperature: 0.9,
+      max_tokens: 2000
+    };
+
+    let resp = await fetch(DEEPSEEK_API_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${getApiKey()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    // 如果带图片请求失败，自动重试纯文本
+    if (!resp.ok && materialImages.length > 0) {
+      requestBody.messages[1].content = userPrompt;
+      resp = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${getApiKey()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+    }
+
+    if (!resp.ok) {
+      let errMsg = `AI服务错误（HTTP ${resp.status}）`;
+      if (resp.status === 401) errMsg = 'API Key 无效，请检查设置';
+      else if (resp.status === 429) errMsg = '调用频率超限，请稍后重试';
+      resultsSection.innerHTML = `<div style="text-align:center;padding:20px;color:var(--danger);">${escapeHtml(errMsg)}</div>`;
+      return;
+    }
+
+    const result = await resp.json();
+    const content = result.choices[0].message.content;
+
+    let parsed;
+    try { parsed = JSON.parse(content); }
+    catch {
+      const m = content.match(/\{[\s\S]*\}/);
+      if (m) parsed = JSON.parse(m[0]);
+      else throw new Error('无法解析返回内容');
+    }
+
+    const generated = {
+      title: parsed.title || '',
+      description: parsed.description || '',
+      tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+      generated_at: new Date().toLocaleString('zh-CN', { hour12: false })
+    };
+
+    saveGeneratedContent(materialProduct.name, generated);
+    displayGeneratedContent(generated);
+    showToast('发布材料已生成', 'success');
+
+  } catch (err) {
+    resultsSection.innerHTML = `<div style="text-align:center;padding:20px;color:var(--danger);">${escapeHtml(err.message || '生成失败')}</div>`;
+    showToast('生成失败，请重试', 'error');
+  } finally {
+    isGenerating = false;
+    btn.disabled = false;
+    btn.textContent = '重新生成';
+  }
+}
+
+function displayGeneratedContent(content) {
+  lastGeneratedContent = content;
+  const section = document.getElementById('material-results');
+  section.classList.add('show');
+
+  const tagsHtml = (content.tags || []).map(t => `<span class="tag-chip">#${escapeHtml(t)}</span>`).join('');
+
+  section.innerHTML = `
+    <h3>✨ 生成结果</h3>
+    <div class="content-block">
+      <div class="content-block-header">
+        <span class="content-block-label">标题（${(content.title || '').length}/20字）</span>
+        <button class="copy-btn" onclick="copyGenerated('title',this)">复制</button>
+      </div>
+      <div class="content-box">${escapeHtml(content.title || '')}</div>
+    </div>
+    <div class="content-block">
+      <div class="content-block-header">
+        <span class="content-block-label">作品描述（${(content.description || '').length}/300字）</span>
+        <button class="copy-btn" onclick="copyGenerated('description',this)">复制</button>
+      </div>
+      <div class="content-box">${escapeHtml(content.description || '')}</div>
+    </div>
+    <div class="content-block">
+      <div class="content-block-header">
+        <span class="content-block-label">话题（${(content.tags || []).length}/10）</span>
+        <button class="copy-btn" onclick="copyGenerated('tags',this)">复制全部</button>
+      </div>
+      <div class="tag-chips">${tagsHtml}</div>
+    </div>
+    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;">生成时间：${escapeHtml(content.generated_at || '')}</div>
+  `;
+}
+
+function copyGenerated(field, btn) {
+  if (!lastGeneratedContent) return;
+  let text = '';
+  if (field === 'title') text = lastGeneratedContent.title || '';
+  else if (field === 'description') text = lastGeneratedContent.description || '';
+  else if (field === 'tags') text = (lastGeneratedContent.tags || []).map(t => `#${t}`).join(' ');
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    btn.classList.add('copied');
+    btn.textContent = '已复制';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '复制'; }, 2000);
+  } catch { showToast('复制失败', 'error'); }
+  document.body.removeChild(textarea);
 }
 
 // ═══ 初始化 ═══
