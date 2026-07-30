@@ -407,18 +407,6 @@ body {
         </div>
       </div>
 
-      <div style="border-top:1px solid var(--border);margin:20px 0;padding-top:20px;">
-        <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:4px;">🎬 视频生成（阿里云百炼）</div>
-        <div class="hint" style="margin-bottom:16px;">配置后可根据上传素材自动生成小红书种草短视频。视频生成约需1-5分钟。</div>
-      </div>
-      <div class="settings-form-group">
-        <label>阿里云百炼 API Key</label>
-        <input type="password" id="input-video-key" placeholder="sk-xxxxxxxx" autocomplete="off">
-        <div class="hint">
-          在 <a href="https://bailian.console.aliyun.com" target="_blank" rel="noopener">阿里云百炼控制台</a> 获取 API Key。用于调用万相/可灵视频生成模型，费用按量计费。
-        </div>
-      </div>
-
       <div class="modal-footer">
         <button class="btn-modal-close" onclick="closeSettings()">取消</button>
         <button class="btn-modal-select" onclick="saveSettings()">保存设置</button>
@@ -464,8 +452,8 @@ body {
 
       <div class="video-section">
         <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:4px;">🎬 生成种草视频</div>
-        <div class="hint" style="font-size:0.76rem;color:var(--text-muted);margin-bottom:12px;">基于上传的素材图片和产品信息，AI自动生成小红书种草短视频（5秒）</div>
-        <button class="btn-video" id="btn-video" onclick="generateVideo()">生成种草视频</button>
+        <div class="hint" style="font-size:0.76rem;color:var(--text-muted);margin-bottom:12px;">基于上传的素材图片和产品信息，自动生成小红书种草短视频（5秒）</div>
+        <button class="btn-video" id="btn-video" onclick="prepareVideoGeneration()">准备视频生成</button>
         <div id="video-results"></div>
       </div>
     </div>
@@ -489,11 +477,6 @@ const STORAGE_KEY_API = 'deepseek_api_key';
 const STORAGE_KEY_MODEL = 'deepseek_model';
 const STORAGE_KEY_BOCHA = 'bocha_api_key';
 const STORAGE_KEY_CONTENT = 'xhs_material_content';
-const STORAGE_KEY_VIDEO = 'dashscope_api_key';
-
-// ═══ 视频生成API ═══
-const DASHSCOPE_VIDEO_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis';
-const DASHSCOPE_TASK_URL = 'https://dashscope.aliyuncs.com/api/v1/tasks';
 
 // ═══ 发布材料功能状态 ═══
 let materialProduct = null;
@@ -505,10 +488,8 @@ let lastGeneratedContent = null;
 function getApiKey() { return localStorage.getItem(STORAGE_KEY_API) || ''; }
 function getModel() { return localStorage.getItem(STORAGE_KEY_MODEL) || ''; }
 function getBochaKey() { return localStorage.getItem(STORAGE_KEY_BOCHA) || DEFAULT_BOCHA_KEY; }
-function getVideoApiKey() { return localStorage.getItem(STORAGE_KEY_VIDEO) || ''; }
 function isApiConfigured() { return getApiKey().length > 0; }
 function hasBochaKey() { return getBochaKey().length > 0; }
-function hasVideoApiKey() { return getVideoApiKey().length > 0; }
 
 function updateApiStatusBar() {
   const bar = document.getElementById('api-status-bar');
@@ -519,17 +500,13 @@ function updateApiStatusBar() {
   const bochaStatus = hasBochaKey()
     ? '<div class="api-status configured">✓ 博查联网搜索已启用</div>'
     : '<div class="api-status not-configured">⚠ 博查联网搜索未启用</div>';
-  const videoStatus = hasVideoApiKey()
-    ? '<div class="api-status configured">✓ 视频生成 API 已配置</div>'
-    : '<div class="api-status not-configured">⚠ 视频生成 API 未配置（可选）</div>';
-  bar.innerHTML = apiStatus + bochaStatus + videoStatus;
+  bar.innerHTML = apiStatus + bochaStatus;
 }
 
 function openSettings() {
   document.getElementById('input-api-key').value = getApiKey();
   document.getElementById('input-model').value = getModel();
   document.getElementById('input-bocha-key').value = getBochaKey();
-  document.getElementById('input-video-key').value = getVideoApiKey();
   updateApiStatusBar();
   document.getElementById('settings-overlay').classList.add('active');
 }
@@ -543,15 +520,12 @@ function saveSettings() {
   const apiKey = document.getElementById('input-api-key').value.trim();
   const model = document.getElementById('input-model').value.trim();
   const bochaKey = document.getElementById('input-bocha-key').value.trim();
-  const videoKey = document.getElementById('input-video-key').value.trim();
   if (!apiKey) { showToast('请填写 DeepSeek API Key', 'warning'); return; }
   localStorage.setItem(STORAGE_KEY_API, apiKey);
   if (model) { localStorage.setItem(STORAGE_KEY_MODEL, model); }
   else { localStorage.removeItem(STORAGE_KEY_MODEL); }
   if (bochaKey) { localStorage.setItem(STORAGE_KEY_BOCHA, bochaKey); }
   else { localStorage.removeItem(STORAGE_KEY_BOCHA); }
-  if (videoKey) { localStorage.setItem(STORAGE_KEY_VIDEO, videoKey); }
-  else { localStorage.removeItem(STORAGE_KEY_VIDEO); }
   closeSettings();
   showToast('设置已保存', 'success');
 }
@@ -1040,7 +1014,7 @@ function openMaterialModal(encodedName) {
   // 重置视频结果区域
   document.getElementById('video-results').innerHTML = '';
   const videoBtn = document.getElementById('btn-video');
-  if (videoBtn) { videoBtn.disabled = false; videoBtn.textContent = '生成种草视频'; }
+  if (videoBtn) { videoBtn.disabled = false; videoBtn.textContent = '准备视频生成'; }
 
   const contents = loadGeneratedContents();
   const resultsSection = document.getElementById('material-results');
@@ -1329,68 +1303,12 @@ function copyGenerated(field, btn) {
   document.body.removeChild(textarea);
 }
 
-// ═══ 种草视频生成 ═══
+// ═══ 种草视频生成（TRAE 视频生成工具对接） ═══
 
-let isGeneratingVideo = false;
-let videoPollTimer = null;
-
-// 将base64图片转为File对象
-function dataURLtoFile(dataURL, filename) {
-  const arr = dataURL.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) { u8arr[n] = bstr.charCodeAt(n); }
-  return new File([u8arr], filename, { type: mime });
-}
-
-// 上传图片到免费图床，返回公网URL
-async function uploadImageForVideo(dataURL) {
-  const file = dataURLtoFile(dataURL, 'material.jpg');
-  const formData = new FormData();
-  formData.append('file', file);
-
-  // 尝试 catbox.moe（免费无需API Key）
-  try {
-    formData.append('reqtype', 'fileupload');
-    const resp = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: formData });
-    if (resp.ok) {
-      const url = (await resp.text()).trim();
-      if (url.startsWith('http')) return url;
-    }
-  } catch (e) { console.warn('catbox上传失败:', e); }
-
-  // 尝试 tmpfiles.org
-  try {
-    const formData2 = new FormData();
-    formData2.append('file', file);
-    const resp = await fetch('https://tmpfiles.org/api/v1/upload', { method: 'POST', body: formData2 });
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data.data && data.data.url) {
-        // tmpfiles返回的URL需要转换格式
-        return data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-      }
-    }
-  } catch (e) { console.warn('tmpfiles上传失败:', e); }
-
-  // 尝试 0x0.st
-  try {
-    const formData3 = new FormData();
-    formData3.append('file', file);
-    const resp = await fetch('https://0x0.st', { method: 'POST', body: formData3 });
-    if (resp.ok) {
-      const url = (await resp.text()).trim();
-      if (url.startsWith('http')) return url;
-    }
-  } catch (e) { console.warn('0x0.st上传失败:', e); }
-
-  throw new Error('图片上传失败，所有图床均不可用。请稍后重试或检查网络。');
-}
+let isPreparingVideo = false;
 
 // 用DeepSeek生成视频提示词
-async function generateVideoPrompt(notes, hasImages) {
+async function generateVideoPrompt(notes) {
   const systemPrompt = '你是一位专业的小红书短视频编导，擅长用简洁的提示词描述美妆产品的展示画面。';
   const context = notes || (materialProduct ? `选品参考：${materialProduct.category || ''}，${materialProduct.brand || ''}` : '美妆个护产品');
 
@@ -1426,158 +1344,100 @@ async function generateVideoPrompt(notes, hasImages) {
   return data.choices[0].message.content.trim();
 }
 
-// 创建视频生成任务
-async function createVideoTask(prompt, imageUrl) {
-  const input = { prompt };
-  if (imageUrl) {
-    input.img_url = imageUrl;
-  }
-
-  const body = {
-    model: imageUrl ? 'wan2.6-i2v-flash' : 'wan2.6-t2v-flash',
-    input,
-    parameters: {
-      resolution: '720P',
-      duration: 5,
-      prompt_extend: true
-    }
-  };
-
-  const resp = await fetch(DASHSCOPE_VIDEO_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${getVideoApiKey()}`,
-      'Content-Type': 'application/json',
-      'X-DashScope-Async': 'enable'
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const errData = await resp.json().catch(() => ({}));
-    const msg = errData.message || errData.error || `HTTP ${resp.status}`;
-    throw new Error(`视频生成请求失败：${msg}`);
-  }
-
-  const data = await resp.json();
-  const taskId = data.output && data.output.task_id;
-  if (!taskId) throw new Error('未获取到任务ID');
-  return taskId;
-}
-
-// 轮询查询任务状态
-async function pollVideoTask(taskId, onProgress) {
-  const maxAttempts = 60; // 最多轮询60次（约5分钟）
-  for (let i = 0; i < maxAttempts; i++) {
-    if (onProgress) onProgress(i);
-
-    await new Promise(r => setTimeout(r, 5000));
-
-    const resp = await fetch(`${DASHSCOPE_TASK_URL}/${taskId}`, {
-      headers: { 'Authorization': `Bearer ${getVideoApiKey()}` }
-    });
-
-    if (!resp.ok) continue;
-    const data = await resp.json();
-    const status = data.output && data.output.task_status;
-
-    if (status === 'SUCCEEDED') {
-      const videoUrl = data.output.video_url || (data.output.results && data.output.results.video_url);
-      if (videoUrl) return videoUrl;
-      throw new Error('任务完成但未获取到视频URL');
-    }
-    if (status === 'FAILED') {
-      const msg = (data.output && data.output.message) || '未知错误';
-      throw new Error(`视频生成失败：${msg}`);
-    }
-  }
-  throw new Error('视频生成超时，请稍后在历史记录中查看');
-}
-
-// 主函数：生成种草视频
-async function generateVideo() {
-  if (isGeneratingVideo) return;
+// 准备视频生成：生成提示词 + 下载素材图片
+async function prepareVideoGeneration() {
+  if (isPreparingVideo) return;
   if (!isApiConfigured()) { showToast('请先配置 DeepSeek API Key', 'warning'); openSettings(); return; }
-  if (!hasVideoApiKey()) { showToast('请先在设置中配置阿里云百炼 API Key', 'warning'); openSettings(); return; }
   if (!materialProduct) { showToast('产品信息缺失', 'error'); return; }
 
   const notes = document.getElementById('material-notes').value.trim();
   const hasImgs = materialImages.length > 0;
   if (!hasImgs && !notes) { showToast('请上传素材图片或填写产品信息后再生成视频', 'warning'); return; }
 
-  isGeneratingVideo = true;
+  isPreparingVideo = true;
   const btn = document.getElementById('btn-video');
   const results = document.getElementById('video-results');
 
   btn.disabled = true;
-  btn.textContent = '正在生成...';
+  btn.textContent = '正在准备...';
   results.innerHTML = `
     <div class="video-progress">
       <div class="gen-spinner"></div>
-      <div class="progress-text" id="video-progress-text">正在准备素材...</div>
-      <div class="progress-sub" id="video-progress-sub">视频生成约需1-5分钟，请耐心等待</div>
+      <div class="progress-text" id="video-progress-text">正在生成视频提示词...</div>
+      <div class="progress-sub">AI正在根据素材编写视频画面描述</div>
     </div>`;
 
-  const updateProgress = (text, sub) => {
-    const el = document.getElementById('video-progress-text');
-    const elSub = document.getElementById('video-progress-sub');
-    if (el) el.textContent = text;
-    if (elSub && sub) elSub.textContent = sub;
-  };
-
   try {
-    // 步骤1：上传图片（如果有）
-    let imageUrl = null;
+    // 步骤1：生成视频提示词
+    const videoPrompt = await generateVideoPrompt(notes);
+
+    // 步骤2：准备素材图片下载链接
+    let imageLinksHtml = '';
     if (hasImgs) {
-      updateProgress('正在上传素材图片...');
-      try {
-        imageUrl = await uploadImageForVideo(materialImages[0]);
-        updateProgress('图片上传完成，正在生成画面提示词...');
-      } catch (e) {
-        console.warn('图片上传失败，将使用纯文本模式:', e);
-        updateProgress('图片上传失败，切换为文生视频模式...', '将根据产品信息直接生成视频');
-      }
-    } else {
-      updateProgress('正在生成画面提示词...');
+      imageLinksHtml = `
+        <div style="margin-top:16px;">
+          <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">📷 素材图片（右键保存或点击下载）</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            ${materialImages.map((src, i) => `
+              <a href="${src}" download="material_${i+1}.jpg" style="display:block;width:80px;height:80px;border-radius:6px;overflow:hidden;border:2px solid var(--border);">
+                <img src="${src}" style="width:100%;height:100%;object-fit:cover;">
+              </a>`).join('')}
+          </div>
+        </div>`;
     }
 
-    // 步骤2：用AI生成视频提示词
-    const videoPrompt = await generateVideoPrompt(notes, hasImgs);
-    console.log('视频提示词:', videoPrompt);
-
-    // 步骤3：创建视频生成任务
-    updateProgress('正在提交视频生成任务...', '已发送至阿里云百炼，等待处理');
-    const taskId = await createVideoTask(videoPrompt, imageUrl);
-
-    // 步骤4：轮询等待结果
-    updateProgress('视频生成中...', 'AI正在渲染画面，通常需要1-5分钟');
-    const videoUrl = await pollVideoTask(taskId, (attempt) => {
-      const elapsed = (attempt + 1) * 5;
-      updateProgress(`视频生成中...（已等待${elapsed}秒）`, 'AI正在渲染画面，请耐心等待');
-    });
-
-    // 步骤5：显示视频
+    // 步骤3：展示提示词和使用说明
     results.innerHTML = `
-      <div class="video-result">
-        <video controls autoplay loop>
-          <source src="${escapeHtml(videoUrl)}" type="video/mp4">
-          你的浏览器不支持视频播放
-        </video>
-        <div class="video-actions">
-          <a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener" class="btn-download">下载视频</a>
-          <a href="javascript:void(0)" onclick="generateVideo()" class="btn-regenerate">重新生成</a>
+      <div style="margin-top:16px;background:var(--border-light);border-radius:var(--radius-sm);padding:16px;">
+        <div style="font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:10px;">🎬 视频生成准备完成</div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.76rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">视频提示词：</div>
+          <div style="background:#fff;border-radius:6px;padding:10px 12px;font-size:0.82rem;color:var(--text);line-height:1.6;border:1px solid var(--border);">
+            ${escapeHtml(videoPrompt)}
+          </div>
+          <button class="copy-btn" style="margin-top:6px;" onclick="copyVideoPrompt(this)" data-prompt="${escapeHtml(videoPrompt)}">复制提示词</button>
+        </div>
+
+        ${imageLinksHtml}
+
+        <div style="margin-top:16px;padding:12px;background:var(--info-bg);border-radius:6px;font-size:0.76rem;color:var(--info);line-height:1.6;">
+          <strong>使用方法：</strong><br>
+          1. 复制上方提示词<br>
+          2. 下载素材图片到本地<br>
+          3. 在 TRAE 对话中发送："<strong>用视频生成工具，根据这个提示词生成视频：[粘贴提示词]</strong>"<br>
+          4. 如有素材图片，一并发送给 AI 助手<br>
+          5. 视频生成完成后会保存到工作目录
         </div>
       </div>`;
-    showToast('种草视频已生成', 'success');
+
+    btn.textContent = '重新准备';
+    showToast('视频提示词已生成', 'success');
 
   } catch (err) {
-    results.innerHTML = `<div class="video-error">${escapeHtml(err.message || '视频生成失败')}</div>`;
-    showToast('视频生成失败', 'error');
+    results.innerHTML = `<div class="video-error">${escapeHtml(err.message || '准备失败')}</div>`;
+    showToast('准备失败', 'error');
   } finally {
-    isGeneratingVideo = false;
+    isPreparingVideo = false;
     btn.disabled = false;
-    btn.textContent = '生成种草视频';
   }
+}
+
+function copyVideoPrompt(btn) {
+  const prompt = btn.getAttribute('data-prompt');
+  const textarea = document.createElement('textarea');
+  textarea.value = prompt;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    btn.classList.add('copied');
+    btn.textContent = '已复制';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '复制提示词'; }, 2000);
+  } catch { showToast('复制失败', 'error'); }
+  document.body.removeChild(textarea);
 }
 
 // ═══ 初始化 ═══
